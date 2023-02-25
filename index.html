@@ -1,0 +1,46 @@
+<html>
+    <body>
+        <script src= "https://player.twitch.tv/js/embed/v1.js"></script>
+        <div id="vod-viewer"></div>
+        <script type="text/javascript">
+        var options = {
+            width: 1280,
+            height: 720,
+            video: "1746067022",
+            // only needed if your site is also embedded on embed.example.com and othersite.example.com
+            parent: ["localhost"]
+        };
+        var player = new Twitch.Player("vod-viewer", options);
+        player.setVolume(0.5);
+        </script>
+        <button onclick="refreshPulls()">Refresh</button>
+        <script type="text/javascript">
+        function seekVod(time)
+        {
+            
+        }
+        
+        function updatePulls()
+        {
+            let divContent="";
+            let resp=JSON.parse(this.responseText);
+            
+            resp.fights.reverse().forEach(e=>{
+                let date=new Date(resp.start+e.start_time);
+                divContent+=e.name+" "+date.toTimeString()+"<button onclick=\"seekVod("+(date.getTime().e.start_time)+")\">Load</button><br/>";
+            });
+            document.getElementById("pulls").innerHTML=divContent;
+        }
+
+        const r=new XMLHttpRequest();
+        r.addEventListener("load", updatePulls);
+        function refreshPulls()
+        {
+            r.open("GET", "https://www.fflogs.com/v1/report/fights/X9Cy12GarkNHb7vR?api_key=ab334697985b7f5db8d2816b9b79fd3b");
+            r.send();
+        }
+        </script>
+        <div id="pulls">
+        </div>
+    </body>
+</html>
