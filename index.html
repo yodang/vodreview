@@ -1,46 +1,111 @@
 <html>
+    <head>
+        <style type="text/css">
+            .layout{
+                display: flex;
+                width: 100%;
+            }
+            .video-pane{
+                width: 70%;
+            }
+            .log-pane{
+                width: 30%;
+            }
+        </style>
+    </head>
     <body>
+        <div class="layout">
+            <div class="video-pane" id="twitch-pane">
+                <label for="twitch-url">Vod ID:</label><input id="twitch-url"/><button onclick="updateVod()">Load</button>
+                <div id="vod-viewer"></div>
+            </div>
+            
+            <div class="log-pane" id="fflogs-pane">
+                <label for="fflogs-url">Report ID:</label><input id="fflogs-url"/><button onclick="logs_id=document.getElementById('fflogs-url').value; refreshPulls();">Load</button>
+                <br/>
+                <button onclick="refreshPulls()">Refresh</button>
+                <div id="pulls">
+                </div>
+            </div>
+        </div>
         <script src= "https://player.twitch.tv/js/embed/v1.js"></script>
-        <div id="vod-viewer"></div>
         <script type="text/javascript">
         var options = {
             width: 1280,
             height: 720,
-            video: "1746067022",
+            video: "",
             // only needed if your site is also embedded on embed.example.com and othersite.example.com
             parent: ["localhost"]
         };
         var player = new Twitch.Player("vod-viewer", options);
         player.setVolume(0.5);
-        </script>
-        <button onclick="refreshPulls()">Refresh</button>
-        <script type="text/javascript">
-        function seekVod(time)
-        {
-            
-        }
         
-        function updatePulls()
+        var logs_id;
+        var vod_start;
+
+        const phase_timings=new Map();
+        phase_timings.set("The Omega Protocol", [0, 120000, 270000]);
+        const api_base="http://localhost:3000";
+        function apiRequest(endpoint, cb)
         {
-            let divContent="";
-            let resp=JSON.parse(this.responseText);
-            
-            resp.fights.reverse().forEach(e=>{
-                let date=new Date(resp.start+e.start_time);
-                divContent+=e.name+" "+date.toTimeString()+"<button onclick=\"seekVod("+(date.getTime().e.start_time)+")\">Load</button><br/>";
-            });
-            document.getElementById("pulls").innerHTML=divContent;
+            let req=new XMLHttpRequest();
+            req.addEventListener("load", ()=>{cb(req.responseText)});
+            req.open("GET", api_base+endpoint);
+            req.send();
         }
 
-        const r=new XMLHttpRequest();
-        r.addEventListener("load", updatePulls);
+        function updateVod()
+        {
+            let vod_id=document.getElementById('twitch-url').value;
+            apiRequest("/vod/"+vod_id, (text)=>{
+                vod_start=Date.parse(JSON.parse(text).creationDate);//check actual field and if conversion is needed
+                player.setVideo(vod_id);
+            })
+        }
+
+        function seekVod(time)
+        {
+            let offset=(time-vod_start)/1000;
+
+            if(offset<0)
+            {
+                window.alert("Invalid start time");
+                return;
+            }
+
+            player.seek(offset);
+        }
+
         function refreshPulls()
         {
-            r.open("GET", "https://www.fflogs.com/v1/report/fights/X9Cy12GarkNHb7vR?api_key=ab334697985b7f5db8d2816b9b79fd3b");
-            r.send();
+            apiRequest("/report/"+logs_id, (text)=>{
+                let divContent="";
+                let resp=JSON.parse(text);
+                console.log(phase_timings);
+
+                resp.fights.reverse().forEach(e=>{
+                    let date=new Date(resp.start+e.start_time);
+                    let duration=e.end_time-e.start_time;
+                    console.log(e.name);
+                    let hours=("00"+date.getHours()).slice(-2);
+                    let min=("00"+date.getMinutes()).slice(-2);
+                    divContent+=e.name+" "+hours+":"+min+" ";
+                    let phases=phase_timings.get(e.name);
+                    if(phases==undefined)
+                        phases=[0];
+                    
+                    for(i=0; i<phases.length; i++)
+                    {
+                        if(phases[i]>duration)
+                            break;
+                        
+                        divContent+="<button onClick=\"seekVod("+(date.getTime()+phases[i])+")\">P"+(i+1)+"</button>"
+                    }
+                    divContent+="<br/>";
+                });
+                document.getElementById("pulls").innerHTML=divContent;
+            })
         }
         </script>
-        <div id="pulls">
-        </div>
     </body>
 </html>
