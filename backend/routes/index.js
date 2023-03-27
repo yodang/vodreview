@@ -23,6 +23,9 @@ router.get('/vod/:id', (req, res, next)=>{
       publishDate: data.publishDate,
       creationDate: data.creationDate
     });
+  }).catch((err)=>{
+    res.statusCode=err._statusCode;
+    res.send();
   });
 })
 
